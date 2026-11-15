@@ -126,7 +126,7 @@ impl Route {
         &self.stops
     }
 
-    pub fn stop_range(
+    pub fn journey(
         &self,
         origin: Station,
         destination: Station,
@@ -246,31 +246,28 @@ mod tests {
     }
 
     #[test]
-    fn stop_range_between_stations() {
-        assert_eq!(
-            route().stop_range(Station::Lille, Station::London),
-            Ok(1..3)
-        );
+    fn journey_between_stations() {
+        assert_eq!(route().journey(Station::Lille, Station::London), Ok(1..3));
     }
 
     #[test]
-    fn stop_range_with_station_not_on_route() {
+    fn journey_with_station_not_on_route() {
         assert_eq!(
-            route().stop_range(Station::Paris, Station::Berlin),
+            route().journey(Station::Paris, Station::Berlin),
             Err(RouteError::StationNotOnRoute)
         );
     }
 
     #[test]
-    fn stop_range_in_wrong_direction() {
+    fn invalid_journey_direction() {
         use Station::*;
         let route = route();
         assert_eq!(
-            route.stop_range(London, Lille),
+            route.journey(London, Lille),
             Err(RouteError::InvalidDirection)
         );
         assert_eq!(
-            route.stop_range(Lille, Lille),
+            route.journey(Lille, Lille),
             Err(RouteError::InvalidDirection)
         );
     }

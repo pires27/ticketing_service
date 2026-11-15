@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
-use crate::domain::booking::{Booking, BookingId, PassengerReservation};
-use crate::domain::inventory::Service;
+use crate::domain::booking::{Booking, BookingId, PassengerReservation, Ticket};
+use crate::domain::inventory::{RouteError, Service};
 
 /// An unvalidated booking request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +15,15 @@ pub enum BookingError {
     EmptyRequest,
     UnknownService,
     DuplicateService,
+    UnknownSeat,
+    ComfortZoneMismatch,
+    InvalidJourney(RouteError),
+}
+
+impl From<RouteError> for BookingError {
+    fn from(error: RouteError) -> Self {
+        Self::InvalidJourney(error)
+    }
 }
 
 #[derive(Debug)]
@@ -52,9 +61,7 @@ impl ReservationSystem {
         }
 
         for ticket in reservations.iter().flat_map(|r| &r.tickets) {
-            if !self.services.contains_key(&ticket.service.number) {
-                return Err(BookingError::UnknownService);
-            }
+            self.validate_ticket(ticket)?;
         }
 
         let id = BookingId(self.next_booking_id);
@@ -66,12 +73,26 @@ impl ReservationSystem {
     pub fn booking(&self, id: BookingId) -> Option<&Booking> {
         self.bookings.get(&id)
     }
+
+    /// Checks a ticket against the inventory: service, seat, comfort zone, journey.
+    fn validate_ticket(&self, ticket: &Ticket) -> Result<(), BookingError> {
+        let service = self
+            .services
+            .get(&ticket.service.number)
+            .ok_or(BookingError::UnknownService)?;
+        let seat = service.seat(ticket.seat).ok_or(BookingError::UnknownSeat)?;
+        if seat.comfort_zone != ticket.comfort_zone {
+            return Err(BookingError::ComfortZoneMismatch);
+        }
+        service.route().journey(ticket.origin, ticket.destination)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::booking::{Passenger, Ticket};
+    use crate::domain::booking::Passenger;
     use crate::domain::date::Date;
     use crate::domain::inventory::{
         Carriage, ComfortZone, Route, Seat, SeatId, ServiceId, Station, Stop,
@@ -144,6 +165,10 @@ mod tests {
         BookingRequest { reservations }
     }
 
+    fn book_one(system: &mut ReservationSystem, ticket: Ticket) -> Result<BookingId, BookingError> {
+        system.book(request(vec![reservation("Alice", vec![ticket])]))
+    }
+
     #[test]
     fn scenario_1_two_passengers_paris_to_amsterdam() {
         let mut system = system();
@@ -178,7 +203,7 @@ mod tests {
     fn failed_booking_stores_nothing_and_keeps_next_id() {
         let mut system = system();
         let failing = request(vec![reservation("Alice", vec![ticket(9999, 'A', 11)])]);
-        assert!(system.book(failing).is_err());
+        assert_eq!(system.book(failing), Err(BookingError::UnknownService));
         assert!(system.booking(BookingId(1)).is_none());
 
         let valid = request(vec![reservation(
@@ -193,6 +218,62 @@ mod tests {
         let mut system = system();
         let request = request(vec![reservation("Alice", vec![ticket(9999, 'A', 11)])]);
         assert_eq!(system.book(request), Err(BookingError::UnknownService));
+    }
+
+    #[test]
+    fn unknown_seat() {
+        let mut system = system();
+        assert_eq!(
+            book_one(&mut system, ticket(SERVICE_NUMBER, 'A', 99)),
+            Err(BookingError::UnknownSeat)
+        );
+    }
+
+    #[test]
+    fn second_class_seat_requested_as_first_class() {
+        let mut system = system();
+        assert_eq!(
+            book_one(&mut system, ticket(SERVICE_NUMBER, 'N', 5)),
+            Err(BookingError::ComfortZoneMismatch)
+        );
+    }
+
+    #[test]
+    fn station_not_on_route() {
+        let mut system = system();
+        let ticket = Ticket {
+            destination: Berlin,
+            ..ticket(SERVICE_NUMBER, 'A', 1)
+        };
+        assert_eq!(
+            book_one(&mut system, ticket),
+            Err(BookingError::InvalidJourney(RouteError::StationNotOnRoute))
+        );
+    }
+
+    #[test]
+    fn backwards_journey() {
+        let mut system = system();
+        let ticket = Ticket {
+            origin: Amsterdam,
+            destination: Paris,
+            ..ticket(SERVICE_NUMBER, 'A', 1)
+        };
+        assert_eq!(
+            book_one(&mut system, ticket),
+            Err(BookingError::InvalidJourney(RouteError::InvalidDirection))
+        );
+    }
+
+    #[test]
+    fn one_invalid_passenger_fails_the_whole_booking() {
+        let mut system = system();
+        let request = request(vec![
+            reservation("Alice", vec![ticket(SERVICE_NUMBER, 'A', 1)]),
+            reservation("Bob", vec![ticket(SERVICE_NUMBER, 'A', 99)]),
+        ]);
+        assert_eq!(system.book(request), Err(BookingError::UnknownSeat));
+        assert!(system.booking(BookingId(1)).is_none());
     }
 
     #[test]

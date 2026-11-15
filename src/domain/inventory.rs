@@ -251,23 +251,9 @@ mod tests {
     }
 
     #[test]
-    fn journey_with_station_not_on_route() {
+    fn journey_to_same_station() {
         assert_eq!(
-            route().journey(Station::Paris, Station::Berlin),
-            Err(RouteError::StationNotOnRoute)
-        );
-    }
-
-    #[test]
-    fn invalid_journey_direction() {
-        use Station::*;
-        let route = route();
-        assert_eq!(
-            route.journey(London, Lille),
-            Err(RouteError::InvalidDirection)
-        );
-        assert_eq!(
-            route.journey(Lille, Lille),
+            route().journey(Station::Lille, Station::Lille),
             Err(RouteError::InvalidDirection)
         );
     }

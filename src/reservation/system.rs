@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
 use crate::domain::booking::{Booking, BookingId, PassengerReservation, Ticket};
-use crate::domain::inventory::{RouteError, Service};
+use crate::domain::inventory::{Route, RouteError, SeatId, Service};
+
+use super::occupancy::conflicts;
 
 /// An unvalidated booking request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +20,7 @@ pub enum BookingError {
     UnknownSeat,
     ComfortZoneMismatch,
     InvalidJourney(RouteError),
+    SeatUnavailable(SeatId),
 }
 
 impl From<RouteError> for BookingError {
@@ -60,8 +63,14 @@ impl ReservationSystem {
             return Err(BookingError::EmptyRequest);
         }
 
-        for ticket in reservations.iter().flat_map(|r| &r.tickets) {
-            self.validate_ticket(ticket)?;
+        let tickets = reservations
+            .iter()
+            .flat_map(|r| &r.tickets)
+            .map(|ticket| self.validate_ticket(ticket).map(|route| (ticket, route)))
+            .collect::<Result<Vec<_>, _>>()?;
+        for (i, &(ticket, route)) in tickets.iter().enumerate() {
+            let earlier = tickets[..i].iter().map(|&(earlier, _)| earlier);
+            self.check_seat_available(ticket, route, earlier)?;
         }
 
         let id = BookingId(self.next_booking_id);
@@ -75,7 +84,8 @@ impl ReservationSystem {
     }
 
     /// Checks a ticket against the inventory: service, seat, comfort zone, journey.
-    fn validate_ticket(&self, ticket: &Ticket) -> Result<(), BookingError> {
+    /// Returns the service's route for the availability check.
+    fn validate_ticket(&self, ticket: &Ticket) -> Result<&Route, BookingError> {
         let service = self
             .services
             .get(&ticket.service.number)
@@ -85,6 +95,25 @@ impl ReservationSystem {
             return Err(BookingError::ComfortZoneMismatch);
         }
         service.route().journey(ticket.origin, ticket.destination)?;
+        Ok(service.route())
+    }
+
+    fn check_seat_available<'a>(
+        &'a self,
+        ticket: &Ticket,
+        route: &Route,
+        earlier: impl Iterator<Item = &'a Ticket>,
+    ) -> Result<(), BookingError> {
+        let booked = self
+            .bookings
+            .values()
+            .flat_map(|booking| booking.reservations())
+            .flat_map(|reservation| &reservation.tickets);
+        for other in booked.chain(earlier) {
+            if conflicts(ticket, other, route)? {
+                return Err(BookingError::SeatUnavailable(ticket.seat));
+            }
+        }
         Ok(())
     }
 }
@@ -101,7 +130,8 @@ mod tests {
 
     const SERVICE_NUMBER: u32 = 5160;
 
-    /// Service 5160 on route 4 (London - Amsterdam) with carriages A and N.
+    /// Service 5160 on route 4 (London - Amsterdam) with first-class carriages
+    /// A and H (40 seats) and second-class carriages N and T (60 seats).
     fn service() -> Service {
         let stop = |station, distance_from_previous_km| Stop {
             station,
@@ -126,7 +156,9 @@ mod tests {
         };
         let carriages = vec![
             carriage('A', 40, ComfortZone::FirstClass),
+            carriage('H', 40, ComfortZone::FirstClass),
             carriage('N', 60, ComfortZone::SecondClass),
+            carriage('T', 60, ComfortZone::SecondClass),
         ];
         Service::new(SERVICE_NUMBER, route, carriages).unwrap()
     }
@@ -152,6 +184,26 @@ mod tests {
         }
     }
 
+    /// Ticket on service 5160 for any seat, comfort zone and journey.
+    fn ticket_between(
+        carriage: char,
+        seat: u8,
+        comfort_zone: ComfortZone,
+        origin: Station,
+        destination: Station,
+    ) -> Ticket {
+        Ticket {
+            comfort_zone,
+            origin,
+            destination,
+            ..ticket(SERVICE_NUMBER, carriage, seat)
+        }
+    }
+
+    fn seat_id(carriage: char, number: u8) -> SeatId {
+        SeatId { carriage, number }
+    }
+
     fn reservation(name: &str, tickets: Vec<Ticket>) -> PassengerReservation {
         PassengerReservation {
             passenger: Passenger {
@@ -169,19 +221,165 @@ mod tests {
         system.book(request(vec![reservation("Alice", vec![ticket])]))
     }
 
+    fn scenario_1_reservations() -> Vec<PassengerReservation> {
+        vec![
+            reservation("Alice", vec![ticket(SERVICE_NUMBER, 'A', 11)]),
+            reservation("Bob", vec![ticket(SERVICE_NUMBER, 'A', 12)]),
+        ]
+    }
+
+    /// London - Amsterdam, changing seats at Paris (see ASSUMPTIONS.md).
+    fn scenario_3_reservations() -> Vec<PassengerReservation> {
+        use ComfortZone::*;
+        vec![
+            reservation(
+                "Alice",
+                vec![
+                    ticket_between('H', 1, FirstClass, London, Paris),
+                    ticket_between('A', 1, FirstClass, Paris, Amsterdam),
+                ],
+            ),
+            reservation(
+                "Bob",
+                vec![
+                    ticket_between('N', 5, SecondClass, London, Paris),
+                    ticket_between('T', 7, SecondClass, Paris, Amsterdam),
+                ],
+            ),
+        ]
+    }
+
     #[test]
     fn scenario_1_two_passengers_paris_to_amsterdam() {
         let mut system = system();
-        let reservations = vec![
-            reservation("Alice", vec![ticket(SERVICE_NUMBER, 'A', 11)]),
-            reservation("Bob", vec![ticket(SERVICE_NUMBER, 'A', 12)]),
-        ];
+        let reservations = scenario_1_reservations();
 
         let id = system.book(request(reservations.clone())).unwrap();
 
         let booking = system.booking(id).unwrap();
         assert_eq!(booking.id(), id);
         assert_eq!(booking.reservations(), reservations.as_slice());
+    }
+
+    #[test]
+    fn scenario_2_repeat_scenario_1() {
+        let mut system = system();
+        assert_eq!(
+            system.book(request(scenario_1_reservations())),
+            Ok(BookingId(1))
+        );
+        assert_eq!(
+            system.book(request(scenario_1_reservations())),
+            Err(BookingError::SeatUnavailable(seat_id('A', 11)))
+        );
+        assert!(system.booking(BookingId(2)).is_none());
+    }
+
+    #[test]
+    fn scenario_3_changing_seats_at_paris() {
+        let mut system = system();
+        assert_eq!(
+            system.book(request(scenario_3_reservations())),
+            Ok(BookingId(1))
+        );
+    }
+
+    #[test]
+    fn scenario_4_repeat_scenario_3() {
+        let mut system = system();
+        assert_eq!(
+            system.book(request(scenario_3_reservations())),
+            Ok(BookingId(1))
+        );
+        assert_eq!(
+            system.book(request(scenario_3_reservations())),
+            Err(BookingError::SeatUnavailable(seat_id('H', 1)))
+        );
+        assert!(system.booking(BookingId(2)).is_none());
+    }
+
+    #[test]
+    fn same_seat_on_touching_journeys_in_separate_bookings() {
+        let mut system = system();
+        let first = ticket_between('A', 1, ComfortZone::FirstClass, London, Paris);
+        let second = ticket_between('A', 1, ComfortZone::FirstClass, Paris, Amsterdam);
+        assert_eq!(book_one(&mut system, first), Ok(BookingId(1)));
+        assert_eq!(book_one(&mut system, second), Ok(BookingId(2)));
+    }
+
+    #[test]
+    fn same_seat_and_journey_on_a_different_date() {
+        let mut system = system();
+        let today = ticket(SERVICE_NUMBER, 'A', 1);
+        let tomorrow = Ticket {
+            service: ServiceId {
+                number: SERVICE_NUMBER,
+                date: Date::new(2021, 4, 2).unwrap(),
+            },
+            ..today
+        };
+        assert_eq!(book_one(&mut system, today), Ok(BookingId(1)));
+        assert_eq!(book_one(&mut system, tomorrow), Ok(BookingId(2)));
+    }
+
+    #[test]
+    fn same_seat_on_overlapping_journeys_within_one_request() {
+        let mut system = system();
+        let request = request(vec![
+            reservation(
+                "Alice",
+                vec![ticket_between(
+                    'A',
+                    1,
+                    ComfortZone::FirstClass,
+                    London,
+                    Brussels,
+                )],
+            ),
+            reservation(
+                "Bob",
+                vec![ticket_between(
+                    'A',
+                    1,
+                    ComfortZone::FirstClass,
+                    Paris,
+                    Amsterdam,
+                )],
+            ),
+        ]);
+        assert_eq!(
+            system.book(request),
+            Err(BookingError::SeatUnavailable(seat_id('A', 1)))
+        );
+        assert!(system.booking(BookingId(1)).is_none());
+    }
+
+    #[test]
+    fn same_seat_on_touching_journeys_within_one_request() {
+        let mut system = system();
+        let request = request(vec![
+            reservation(
+                "Alice",
+                vec![ticket_between(
+                    'A',
+                    1,
+                    ComfortZone::FirstClass,
+                    London,
+                    Paris,
+                )],
+            ),
+            reservation(
+                "Bob",
+                vec![ticket_between(
+                    'A',
+                    1,
+                    ComfortZone::FirstClass,
+                    Paris,
+                    Amsterdam,
+                )],
+            ),
+        ]);
+        assert_eq!(system.book(request), Ok(BookingId(1)));
     }
 
     #[test]

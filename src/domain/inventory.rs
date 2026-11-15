@@ -32,6 +32,10 @@ pub enum InventoryError {
     DuplicateSeat,
     NoCarriages,
     DuplicateCarriage,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RouteError {
     StationNotOnRoute,
     InvalidDirection,
 }

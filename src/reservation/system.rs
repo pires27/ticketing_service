@@ -4,7 +4,7 @@ use std::collections::hash_map::Entry;
 use crate::domain::booking::{Booking, BookingId, PassengerReservation};
 use crate::domain::inventory::Service;
 
-/// An unvalidated booking request. Only `book()` turns it into a `Booking`.
+/// An unvalidated booking request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BookingRequest {
     pub reservations: Vec<PassengerReservation>,

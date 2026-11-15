@@ -51,7 +51,7 @@ pub struct SeatId {
 
 /// Identifies a service running on a given date.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ServiceIdentifier {
+pub struct ServiceId {
     pub number: u32,
     pub date: Date,
 }

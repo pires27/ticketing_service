@@ -1,4 +1,4 @@
-use super::inventory::{SeatId, ServiceIdentifier, Station};
+use super::inventory::{ComfortZone, SeatId, ServiceId, Station};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BookingId(pub u64);
@@ -10,8 +10,9 @@ pub struct Passenger {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ticket {
-    pub service: ServiceIdentifier,
+    pub service: ServiceId,
     pub seat: SeatId,
+    pub comfort_zone: ComfortZone,
     pub origin: Station,
     pub destination: Station,
 }

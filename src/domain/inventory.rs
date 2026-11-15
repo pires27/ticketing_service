@@ -84,7 +84,7 @@ pub struct Stop {
 
 #[derive(Debug, Clone)]
 pub struct Route {
-    pub stops: Vec<Stop>,
+    stops: Vec<Stop>,
 }
 
 impl Route {

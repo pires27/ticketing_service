@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::ops::Range;
 
 use super::date::Date;
 
@@ -124,6 +125,24 @@ impl Route {
     pub fn stops(&self) -> &[Stop] {
         &self.stops
     }
+
+    pub fn stop_range(
+        &self,
+        origin: Station,
+        destination: Station,
+    ) -> Result<Range<usize>, RouteError> {
+        let position = |station| {
+            self.stops
+                .iter()
+                .position(|stop| stop.station == station)
+                .ok_or(RouteError::StationNotOnRoute)
+        };
+        let (start, end) = (position(origin)?, position(destination)?);
+        if start >= end {
+            return Err(RouteError::InvalidDirection);
+        }
+        Ok(start..end)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -162,6 +181,15 @@ impl Service {
 
     pub fn carriages(&self) -> &[Carriage] {
         &self.carriages
+    }
+
+    pub fn seat(&self, id: SeatId) -> Option<&Seat> {
+        self.carriages
+            .iter()
+            .find(|carriage| carriage.id == id.carriage)?
+            .seats
+            .iter()
+            .find(|seat| seat.number == id.number)
     }
 }
 
@@ -218,6 +246,36 @@ mod tests {
     }
 
     #[test]
+    fn stop_range_between_stations() {
+        assert_eq!(
+            route().stop_range(Station::Lille, Station::London),
+            Ok(1..3)
+        );
+    }
+
+    #[test]
+    fn stop_range_with_station_not_on_route() {
+        assert_eq!(
+            route().stop_range(Station::Paris, Station::Berlin),
+            Err(RouteError::StationNotOnRoute)
+        );
+    }
+
+    #[test]
+    fn stop_range_in_wrong_direction() {
+        use Station::*;
+        let route = route();
+        assert_eq!(
+            route.stop_range(London, Lille),
+            Err(RouteError::InvalidDirection)
+        );
+        assert_eq!(
+            route.stop_range(Lille, Lille),
+            Err(RouteError::InvalidDirection)
+        );
+    }
+
+    #[test]
     fn valid_carriage() {
         let carriage = carriage('A');
         assert_eq!((carriage.id(), carriage.seats().len()), ('A', 2));
@@ -253,6 +311,15 @@ mod tests {
     fn valid_service() {
         let service = Service::new(5160, route(), vec![carriage('A'), carriage('H')]).unwrap();
         assert_eq!((service.number(), service.carriages().len()), (5160, 2));
+    }
+
+    #[test]
+    fn seat_lookup() {
+        let service = Service::new(5160, route(), vec![carriage('A')]).unwrap();
+        let id = |carriage, number| SeatId { carriage, number };
+        assert_eq!(service.seat(id('A', 2)), Some(&seat(2)));
+        assert_eq!(service.seat(id('H', 1)), None);
+        assert_eq!(service.seat(id('A', 3)), None);
     }
 
     #[test]

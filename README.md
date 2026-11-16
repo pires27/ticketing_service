@@ -54,7 +54,7 @@ The code is split into three main modules. Dependencies point one way: `api` use
 - Inventory is loaded once at construction, the only runtime changes are new bookings. In production, inventory would come from an external system and be loaded when required.
 - Requests reuse the domain types (`PassengerReservation`, `Ticket`) since they have the same shape. 
 - Only the reservation system actually turns a request into a booking (`book()` function). Occupancy helpers are private to the reservation module. 
-- The `POST` request for new reservation takes `&mut self` because creating a booking changes state. Concurrent use would need a `Mutex` (or similar) in production.
+- The `POST` request for a new reservation takes `&mut self` because creating a booking changes state. Concurrent use would need a `Mutex` (or similar) in production.
 - Error to status mapping in the REST-like client, so a new error can't be added without choosing its status code.
 - Errors live in the module that produces them (no shared errors file).
 - The `unwrap_used` lint is denied outside tests, so production code never panics on an error, failures are returned as errors.
@@ -68,6 +68,13 @@ in [tests/scenarios.rs](tests/scenarios.rs).
 - End-to-End tests (4) use only the public API, mirroring client behavior, to run the proposed assignment scenarios. They also use the mock data.
 
 To make sure the tests are meaningful, they use exact assertions instead of generic `is_err()`. Key parts of the code were broken on purpose to confirm that tests fail, so they don't simply always pass.
+
+## What I'd do next
+- Conductor queries. Boarding and leaving counts per station, passengers on board between stations and who sits in a given seat. The occupancy logic was written with this in mind.
+- Add an index by service, date and seat so a booking only checks the tickets on its own seats instead of the current extensive scan.
+- Concurrency so that several clients can book at the same time.
+- Continuous integration with a pipeline running fmt, clippy and tests on every push.
+- Shared test helpers (ticket and request helpers) are repeated in a few test modules.
 
 
 ## Assumptions

@@ -42,7 +42,9 @@ The code is split into three main modules. Dependencies point one way: `api` use
 - `mock_data.rs`: the sample service data
 - `tests/scenarios.rs`: the 4 assignment scenarios
 
-(excalidraw diagram and module overview - to be added)
+![Design](docs/design.svg)
+
+Excalidraw source in [docs/design.excalidraw](docs/design.excalidraw), also exported as [PNG](docs/design.png) and [SVG](docs/design.svg).
 
 ## Decisions
 - Booking IDs are sequential numbers (with crates would turn into UUIDs).
@@ -50,6 +52,7 @@ The code is split into three main modules. Dependencies point one way: `api` use
 - Occupancy is verified against the tickets already in the system. There is only a conflict if the same seat is booked on overlapping parts of the itinerary. Touching stations, where one journey ends and the other starts, are not considered overlapping. The check is linear for now (it scans every stored ticket), upon scaling it would require an index (for instance by service, date and seat).
 - Types that must obey rules (dates, routes, carriages and services) have private fields and validated constructors, so invalid data can't be created.
 - IDs (`BookingId`, `ServiceId` and `SeatId`) are used instead of references, so bookings own their data and don't borrow from the inventory, with no lifetimes involved.
+- A Service is identified by its number, `ServiceId` (number + date) identifies one run of it, which is what tickets reference.
 - The comfort zone is stored on the ticket as the class sold, like a real train ticket. If the layout of the trains changes, existing tickets would still show what was sold.
 - Inventory is loaded once at construction, the only runtime changes are new bookings. In production, inventory would come from an external system and be loaded when required.
 - Requests reuse the domain types (`PassengerReservation`, `Ticket`) since they have the same shape. 

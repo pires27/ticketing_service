@@ -7,6 +7,7 @@
 - Each route has "at least 2 stops". These are intermediate stops and do not include origin and destination.
 - Station and route data is mocked for assignment purposes, covering suggested scenarios.
 - Each stop records the distance in kms from the previous stop.
+- Lille, Brussels, Rotterdam, Cologne and Hamburg were added as intermediate stops, so each route has at least 2 intermediate stops.
 - Distances are stored as the assignment requires but are not used by any feature yet.
 
 Route 1: Paris - London. Stops: Lille - Calais
@@ -26,7 +27,7 @@ Route 4: London - Amsterdam. Stops: Calais - Paris - Brussels
 - A seat is unique per service and has exactly one comfort zone. Identified by a carriage letter and a number. Mock data uses one zone per carriage but the model allows mixed carriages also.
 
 ### Booking
-- A seat is only occupied between a ticket's origin and destination. Occupancy checks are ticket based.
+- A seat is only occupied between a ticket's origin and destination. Occupancy checks are ticket based (see "Occupancy checks" in the [design diagram](docs/design.svg)).
 - Booking is all-or-nothing, if a seat is unavailable or invalid, booking fails.
 - Multiple tickets in the same booking reservation must not hold the same seat in the given range of stops.
 - Specified comfort zone when making a reservation is validated against the seat.

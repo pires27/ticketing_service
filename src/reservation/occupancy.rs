@@ -3,12 +3,11 @@ use std::ops::Range;
 use crate::domain::booking::Ticket;
 use crate::domain::inventory::{Route, RouteError};
 
-/// Journeys that only touch at a station do not overlap.
 pub(super) fn overlaps(a: &Range<usize>, b: &Range<usize>) -> bool {
     a.start < b.end && b.start < a.end
 }
 
-/// Same service and date, same seat, and overlapping journeys on route.
+/// Checks if two tickets conflict: same service and date, same seat, and overlapping journeys on the route.
 pub(super) fn conflicts(a: &Ticket, b: &Ticket, route: &Route) -> Result<bool, RouteError> {
     if a.service != b.service || a.seat != b.seat {
         return Ok(false);

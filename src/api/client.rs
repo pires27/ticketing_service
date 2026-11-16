@@ -32,7 +32,6 @@ impl InMemoryClient {
         Self { system }
     }
 
-    /// A client over the sample network from `mock_data`.
     pub fn with_mock_data() -> Result<Self, InventoryError> {
         Ok(Self::new(ReservationSystem::new(mock_data::services()?)?))
     }

@@ -10,13 +10,13 @@
 - Lille, Brussels, Rotterdam, Cologne and Hamburg were added as intermediate stops, so each route has at least 2 intermediate stops.
 - Distances are stored as the assignment requires but are not used by any feature yet.
 
-Route 1: Paris - London. Stops: Lille - Calais
-Route 2: Paris - Amsterdam. Stops: Brussels - Rotterdam
-Route 3: Amsterdam - Berlin. Stops: Cologne - Hamburg
-Route 4: London - Amsterdam. Stops: Calais - Paris - Brussels
+- Route 1: Paris - London. Stops: Lille - Calais
+- Route 2: Paris - Amsterdam. Stops: Brussels - Rotterdam
+- Route 3: Amsterdam - Berlin. Stops: Cologne - Hamburg
+- Route 4: London - Amsterdam. Stops: Calais - Paris - Brussels
 
 ### Services
-- A service is identified by its number and date.
+- A service is identified by its number. A run of it on a given date is identified by its number and date (`ServiceId`), which is what tickets reference.
 - Every service runs once per day, every day. No indication of time frames. So, queries work for any service and date.
 - Each route is operated by one service. Service 5160 (from the assignment) corresponds to route 4 in the mocked data, the other services also have fixed mocked numbers for consistency.
 

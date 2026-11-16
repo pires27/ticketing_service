@@ -68,7 +68,7 @@ Tests are divided into two main groups: unit tests inside each module, and end-t
 in [tests/scenarios.rs](tests/scenarios.rs).
 
 - Unit tests (55, in `#[cfg(test)]` modules) are used for validation rules, edge cases and booking rules. The domain and reservation tests use their own data, so changing the mock data doesn't break them. The API tests use the mock data.
-- End-to-End tests (4) use only the public API, mirroring client behavior, to run the proposed assignment scenarios. They also use the mock data.
+- end-to-end tests (4) use only the public API, mirroring client behavior, to run the proposed assignment scenarios. They also use the mock data.
 
 To make sure the tests are meaningful, they use exact assertions instead of generic `is_err()`. Key parts of the code were broken on purpose to confirm that tests fail, so they don't simply always pass.
 

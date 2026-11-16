@@ -28,7 +28,7 @@ the same way a client would.
 
 ## Design
 
-The code is split into three main modules. Dependencies point one way: `api` uses `reservation`, which uses `domain`.
+The code is split into three main modules, each with its own responsibility, so the boundaries between them are clear. Dependencies point one way: `api` uses `reservation`, which uses `domain`.
 
 - **domain**: domain definitions for services and bookings
   - `inventory.rs`: types for stations, routes, services, carriages and seats (validation upon creation).
@@ -61,7 +61,7 @@ Excalidraw source in [docs/design.excalidraw](docs/design.excalidraw), also expo
 - Error to status mapping in the REST-like client, so a new error can't be added without choosing its status code.
 - Errors live in the module that produces them (no shared errors file).
 - The `unwrap_used` lint is denied outside tests, so production code never panics on an error, failures are returned as errors.
-
+- No external crates were used. For the purpose of the assignment, I preferred simplicity and used only the standard library.
 
 ## Testing
 Tests are divided into two main groups: unit tests inside each module, and end-to-end tests

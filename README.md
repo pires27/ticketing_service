@@ -71,11 +71,13 @@ To make sure the tests are meaningful, they use exact assertions instead of gene
 
 ## What I'd do next
 - Conductor queries. Boarding and leaving counts per station, passengers on board between stations and who sits in a given seat. The occupancy logic was written with this in mind.
-- Add an index by service, date and seat so a booking only checks the tickets on its own seats instead of the current extensive scan.
+- Add an index by service, date and seat so a booking only checks the tickets on its own seats instead of the current full scan.
 - Concurrency so that several clients can book at the same time.
 - Continuous integration with a pipeline running fmt, clippy and tests on every push.
-- Shared test helpers (ticket and request helpers) are repeated in a few test modules.
+- Share the test helpers (tickets and requests) that are currently repeated in a few test modules.
 
+## How AI was used
+AI tools (Claude, Claude Code) were used as a pair programmer to discuss design options, review my decisions and generate code from my own detailed specifications. Design and architectural decisions, assumptions and trade-offs are mine, documented above and in [ASSUMPTIONS.md](ASSUMPTIONS.md). Every change was reviewed before pushing, and the tests were checked by breaking code on purpose. Every part of it is owned by me and is my responsibility.
 
 ## Assumptions
 See [ASSUMPTIONS.md](ASSUMPTIONS.md)

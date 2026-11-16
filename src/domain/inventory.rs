@@ -28,7 +28,7 @@ pub enum ComfortZone {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InventoryError {
-    InvalidRoute,
+    TooFewStops,
     DuplicateStation,
     InvalidCarriageId,
     InvalidSeatNumber,
@@ -41,7 +41,7 @@ pub enum InventoryError {
 impl fmt::Display for InventoryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidRoute => write!(f, "a route needs at least {MIN_STOPS} stops"),
+            Self::TooFewStops => write!(f, "a route needs at least {MIN_STOPS} stops"),
             Self::DuplicateStation => f.write_str("a station appears more than once on the route"),
             Self::InvalidCarriageId => {
                 f.write_str("carriage ID must be an uppercase letter A to Z")
@@ -158,7 +158,7 @@ const MIN_STOPS: usize = 4;
 impl Route {
     pub fn new(stops: Vec<Stop>) -> Result<Self, InventoryError> {
         if stops.len() < MIN_STOPS {
-            return Err(InventoryError::InvalidRoute);
+            return Err(InventoryError::TooFewStops);
         }
         if has_duplicates(stops.iter().map(|stop| stop.station)) {
             return Err(InventoryError::DuplicateStation);
@@ -276,7 +276,7 @@ mod tests {
             stop(Station::Lille),
             stop(Station::London),
         ];
-        assert_eq!(Route::new(stops).unwrap_err(), InventoryError::InvalidRoute);
+        assert_eq!(Route::new(stops).unwrap_err(), InventoryError::TooFewStops);
     }
 
     #[test]

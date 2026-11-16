@@ -56,10 +56,10 @@ impl HttpClient for InMemoryClient {
         let Some(id) = url.strip_prefix("/bookings/") else {
             return Response::error(404, "not found");
         };
-        let Ok(id) = id.parse() else {
+        let Some(id) = parse_booking_id(id) else {
             return Response::error(400, "booking id must be a number");
         };
-        match self.system.booking(BookingId(id)) {
+        match self.system.booking(id) {
             Some(booking) => Response::booking(200, booking.clone()),
             None => Response::error(404, "booking not found"),
         }
@@ -80,6 +80,13 @@ impl Response {
             body: ResponseBody::Error(message.into()),
         }
     }
+}
+
+fn parse_booking_id(text: &str) -> Option<BookingId> {
+    if !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok().map(BookingId)
 }
 
 fn status_code(error: BookingError) -> u16 {
@@ -191,6 +198,13 @@ mod tests {
     #[test]
     fn get_non_numeric_booking_id_is_400() {
         assert_eq!(client().get("/bookings/abc").status_code, 400);
+    }
+
+    #[test]
+    fn get_booking_id_with_plus_sign_is_400() {
+        let mut client = client();
+        client.post("/bookings", request(ticket()));
+        assert_eq!(client.get("/bookings/+1").status_code, 400);
     }
 
     #[test]

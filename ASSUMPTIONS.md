@@ -7,6 +7,7 @@
 - Each route has "at least 2 stops". These are intermediate stops and do not include origin and destination.
 - Station and routes data is mocked for the assignment purpose, covering suggested scenarios.
 - Each stop records the distance in kms from the previous stop.
+- Distances are stored as the brief requires but are not used by any feature yet.
 
 Route 1: Paris - London. Stops:  Lille - Calais
 Route 2: Paris - Amsterdam. Stops:  Brussels - Rotterdam

@@ -7,7 +7,7 @@
 - Each route has "at least 2 stops". These are intermediate stops and do not include origin and destination.
 - Station and routes data is mocked for the assignment purpose, covering suggested scenarios.
 - Each stop records the distance in kms from the previous stop.
-- Distances are stored as the brief requires but are not used by any feature yet.
+- Distances are stored as the assignment requires but are not used by any feature yet.
 
 Route 1: Paris - London. Stops:  Lille - Calais
 Route 2: Paris - Amsterdam. Stops:  Brussels - Rotterdam
@@ -30,7 +30,6 @@ Route 4: London - Amsterdam. Stops: Calais - Paris - Brussels
 - Booking is all-or-nothing, if a seat is unavailable or invalid booking fails.
 - Multiple tickets in the same booking reservation must not hold the same seat in the given range of stops.
 - Specified comfort zone when making a reservation is validated against the seat.
-- Booking IDs are sequential numbers (with crates would turn into UUIDs).
 - In assignment proposed scenario 3: assumption is that passengers change seats at Paris (initial seats were not available for the whole journey), H1 then A1 first class, N5 then T7 second class. If the assumption was changing trains, it is also supported since each ticket references its own service.
 
 ## Out of scope

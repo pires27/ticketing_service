@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::error::Error;
+use std::fmt;
 
 use crate::domain::booking::{Booking, BookingId, PassengerReservation, Ticket};
-use crate::domain::inventory::{Route, RouteError, SeatId, Service};
+use crate::domain::inventory::{InventoryError, Route, RouteError, SeatId, Service};
 
 use super::occupancy::conflicts;
 
@@ -16,12 +18,32 @@ pub struct BookingRequest {
 pub enum BookingError {
     EmptyRequest,
     UnknownService,
-    DuplicateService,
     UnknownSeat,
     ComfortZoneMismatch,
     InvalidJourney(RouteError),
     SeatUnavailable(SeatId),
 }
+
+impl fmt::Display for BookingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EmptyRequest => {
+                f.write_str("a booking needs at least one passenger, each with at least one ticket")
+            }
+            Self::UnknownService => f.write_str("service not found"),
+            Self::UnknownSeat => f.write_str("seat not found on this service"),
+            Self::ComfortZoneMismatch => {
+                f.write_str("requested comfort zone does not match the seat")
+            }
+            Self::InvalidJourney(error) => error.fmt(f),
+            Self::SeatUnavailable(seat) => {
+                write!(f, "seat {seat} is not available on this journey")
+            }
+        }
+    }
+}
+
+impl Error for BookingError {}
 
 impl From<RouteError> for BookingError {
     fn from(error: RouteError) -> Self {
@@ -39,11 +61,11 @@ pub struct ReservationSystem {
 impl ReservationSystem {
     /// Inventory is loaded once here and is read-only afterwards.
     /// Only bookings change at runtime. Rejects duplicate service numbers.
-    pub fn new(services: Vec<Service>) -> Result<Self, BookingError> {
+    pub fn new(services: Vec<Service>) -> Result<Self, InventoryError> {
         let mut by_number = HashMap::new();
         for service in services {
             match by_number.entry(service.number()) {
-                Entry::Occupied(_) => return Err(BookingError::DuplicateService),
+                Entry::Occupied(_) => return Err(InventoryError::DuplicateService),
                 Entry::Vacant(slot) => {
                     slot.insert(service);
                 }
@@ -490,7 +512,7 @@ mod tests {
     fn duplicate_service() {
         assert_eq!(
             ReservationSystem::new(vec![service(), service()]).unwrap_err(),
-            BookingError::DuplicateService
+            InventoryError::DuplicateService
         );
     }
 }

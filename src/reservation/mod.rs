@@ -1,2 +1,2 @@
-pub mod occupancy;
+mod occupancy;
 pub mod system;

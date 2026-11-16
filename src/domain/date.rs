@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 /// Calendar date. Fields are ordered: year, month, day
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Date {
@@ -11,6 +14,17 @@ pub enum DateError {
     InvalidMonth,
     InvalidDay,
 }
+
+impl fmt::Display for DateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::InvalidMonth => "month must be between 1 and 12",
+            Self::InvalidDay => "day does not exist in this month",
+        })
+    }
+}
+
+impl Error for DateError {}
 
 impl Date {
     pub fn new(year: u16, month: u8, day: u8) -> Result<Self, DateError> {

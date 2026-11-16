@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt;
 use std::hash::Hash;
 use std::ops::Range;
 
@@ -33,13 +35,48 @@ pub enum InventoryError {
     DuplicateSeat,
     NoCarriages,
     DuplicateCarriage,
+    DuplicateService,
 }
+
+impl fmt::Display for InventoryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidRoute => write!(f, "a route needs at least {MIN_STOPS} stops"),
+            Self::DuplicateStation => f.write_str("a station appears more than once on the route"),
+            Self::InvalidCarriageId => {
+                f.write_str("carriage ID must be an uppercase letter A to Z")
+            }
+            Self::InvalidSeatNumber => f.write_str("seat numbers start at 1"),
+            Self::DuplicateSeat => {
+                f.write_str("a seat number appears more than once in the carriage")
+            }
+            Self::NoCarriages => f.write_str("a service needs at least one carriage"),
+            Self::DuplicateCarriage => {
+                f.write_str("a carriage ID appears more than once on the service")
+            }
+            Self::DuplicateService => f.write_str("a service number appears more than once"),
+        }
+    }
+}
+
+impl Error for InventoryError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RouteError {
     StationNotOnRoute,
     InvalidDirection,
 }
+
+impl fmt::Display for RouteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::StationNotOnRoute => "station is not on this service's route",
+            Self::InvalidDirection => "destination must come after origin on this route",
+        })
+    }
+}
+
+impl Error for RouteError {}
 
 /// Returns true if any item appears more than once.
 fn has_duplicates<T: Eq + Hash>(items: impl IntoIterator<Item = T>) -> bool {
@@ -52,6 +89,13 @@ fn has_duplicates<T: Eq + Hash>(items: impl IntoIterator<Item = T>) -> bool {
 pub struct SeatId {
     pub carriage: char,
     pub number: u8,
+}
+
+/// Carriage letter followed by seat number.
+impl fmt::Display for SeatId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", self.carriage, self.number)
+    }
 }
 
 /// Identifies a service running on a given date.

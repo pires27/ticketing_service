@@ -100,6 +100,8 @@ fn status_code(error: BookingError) -> u16 {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU8;
+
     use super::*;
     use crate::domain::booking::{Passenger, PassengerReservation, Ticket};
     use crate::domain::date::Date;
@@ -118,7 +120,7 @@ mod tests {
             },
             seat: SeatId {
                 carriage: 'A',
-                number: 11,
+                number: NonZeroU8::new(11).unwrap(),
             },
             comfort_zone: ComfortZone::FirstClass,
             origin: Station::Paris,

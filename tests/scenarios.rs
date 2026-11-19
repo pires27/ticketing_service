@@ -1,3 +1,5 @@
+use std::num::NonZeroU8;
+
 use ticketing_service::{
     Booking, BookingId, BookingRequest, ComfortZone, Date, HttpClient, InMemoryClient, Passenger,
     PassengerReservation, Response, ResponseBody, SeatId, ServiceId, Station, Ticket,
@@ -28,7 +30,7 @@ fn ticket(
         service: on_april_1st(5160),
         seat: SeatId {
             carriage,
-            number: seat,
+            number: NonZeroU8::new(seat).expect("seat numbers start at 1"),
         },
         comfort_zone,
         origin,

@@ -90,6 +90,7 @@ impl ReservationSystem {
             .flat_map(|r| &r.tickets)
             .map(|ticket| self.validate_ticket(ticket).map(|route| (ticket, route)))
             .collect::<Result<Vec<_>, _>>()?;
+
         for (i, &(ticket, route)) in tickets.iter().enumerate() {
             let earlier = tickets[..i].iter().map(|&(earlier, _)| earlier);
             self.check_seat_available(ticket, route, earlier)?;
@@ -142,6 +143,8 @@ impl ReservationSystem {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU8;
+
     use super::*;
     use crate::domain::booking::Passenger;
     use crate::domain::date::Date;
@@ -170,7 +173,7 @@ mod tests {
         let carriage = |id, seat_count, comfort_zone| {
             let seats = (1..=seat_count)
                 .map(|number| Seat {
-                    number,
+                    number: NonZeroU8::new(number).unwrap(),
                     comfort_zone,
                 })
                 .collect();
@@ -198,7 +201,7 @@ mod tests {
             },
             seat: SeatId {
                 carriage,
-                number: seat,
+                number: NonZeroU8::new(seat).unwrap(),
             },
             comfort_zone: ComfortZone::FirstClass,
             origin: Paris,
@@ -223,7 +226,10 @@ mod tests {
     }
 
     fn seat_id(carriage: char, number: u8) -> SeatId {
-        SeatId { carriage, number }
+        SeatId {
+            carriage,
+            number: NonZeroU8::new(number).unwrap(),
+        }
     }
 
     fn reservation(name: &str, tickets: Vec<Ticket>) -> PassengerReservation {

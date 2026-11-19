@@ -1,3 +1,5 @@
+use std::num::NonZeroU8;
+
 use crate::domain::inventory::{
     Carriage, ComfortZone, InventoryError, Route, Seat, Service, Station, Stop,
 };
@@ -64,6 +66,7 @@ fn single_class_carriage(
     Carriage::new(
         id,
         (1..=seats)
+            .filter_map(NonZeroU8::new)
             .map(|number| Seat {
                 number,
                 comfort_zone,

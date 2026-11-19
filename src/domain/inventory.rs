@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 use std::hash::Hash;
+use std::num::NonZeroU8;
 use std::ops::Range;
 
 use super::date::Date;
@@ -31,7 +32,6 @@ pub enum InventoryError {
     TooFewStops,
     DuplicateStation,
     InvalidCarriageId,
-    InvalidSeatNumber,
     DuplicateSeat,
     NoCarriages,
     DuplicateCarriage,
@@ -46,7 +46,6 @@ impl fmt::Display for InventoryError {
             Self::InvalidCarriageId => {
                 f.write_str("carriage ID must be an uppercase letter A to Z")
             }
-            Self::InvalidSeatNumber => f.write_str("seat numbers start at 1"),
             Self::DuplicateSeat => {
                 f.write_str("a seat number appears more than once in the carriage")
             }
@@ -88,7 +87,7 @@ fn has_duplicates<T: Eq + Hash>(items: impl IntoIterator<Item = T>) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SeatId {
     pub carriage: char,
-    pub number: u8,
+    pub number: NonZeroU8,
 }
 
 /// Carriage letter followed by seat number.
@@ -107,7 +106,7 @@ pub struct ServiceId {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seat {
-    pub number: u8,
+    pub number: NonZeroU8,
     pub comfort_zone: ComfortZone,
 }
 
@@ -123,9 +122,6 @@ impl Carriage {
             return Err(InventoryError::InvalidCarriageId);
         }
 
-        if seats.iter().any(|seat| seat.number == 0) {
-            return Err(InventoryError::InvalidSeatNumber);
-        }
         if has_duplicates(seats.iter().map(|seat| seat.number)) {
             return Err(InventoryError::DuplicateSeat);
         }
@@ -250,7 +246,7 @@ mod tests {
 
     fn seat(number: u8) -> Seat {
         Seat {
-            number,
+            number: NonZeroU8::new(number).unwrap(),
             comfort_zone: ComfortZone::FirstClass,
         }
     }
@@ -319,14 +315,6 @@ mod tests {
     }
 
     #[test]
-    fn carriage_with_seat_number_zero() {
-        assert_eq!(
-            Carriage::new('A', vec![seat(0)]).unwrap_err(),
-            InventoryError::InvalidSeatNumber
-        );
-    }
-
-    #[test]
     fn carriage_with_duplicate_seat() {
         assert_eq!(
             Carriage::new('A', vec![seat(1), seat(1)]).unwrap_err(),
@@ -343,7 +331,10 @@ mod tests {
     #[test]
     fn seat_lookup() {
         let service = Service::new(5160, route(), vec![carriage('A')]).unwrap();
-        let id = |carriage, number| SeatId { carriage, number };
+        let id = |carriage, number| SeatId {
+            carriage,
+            number: NonZeroU8::new(number).unwrap(),
+        };
         assert_eq!(service.seat(id('A', 2)), Some(&seat(2)));
         assert_eq!(service.seat(id('H', 1)), None);
         assert_eq!(service.seat(id('A', 3)), None);
